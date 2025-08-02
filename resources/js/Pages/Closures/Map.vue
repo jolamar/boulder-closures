@@ -87,8 +87,8 @@ onMounted(async () => {
         <input
             v-model="searchTerm"
             type="text"
-            placeholder="Search closures..."
-            class="absolute top-4 left-4 z-[1000] p-2 rounded bg-white border shadow"
+            placeholder="Search flatirons..."
+            class="absolute top-4 left-12 z-[1000] p-2 rounded bg-white border shadow"
         />
         <div id="map"></div>
     </div>

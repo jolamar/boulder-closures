@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\FavoriteController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -13,9 +14,14 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/closures', function () {
-    return Inertia::render('Closures/Map');
-})->middleware(['auth']);
+Route::middleware('auth')->group(function () {
+    Route::get('/closures', function () {
+        return Inertia::render('Closures/Map');
+    });
+    Route::get('/favorites', [FavoriteController::class, 'index']);
+    Route::post('/favorites', [FavoriteController::class, 'store']);
+    Route::delete('/favorites', [FavoriteController::class, 'destroy']);
+});
 
 Route::middleware([
     'auth:sanctum',

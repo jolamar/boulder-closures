@@ -6,8 +6,15 @@ import { onMounted, ref, watch } from 'vue'
 const map = ref(null)
 const closures = ref([])
 const filteredClosures = ref([])
+const favorites = ref(new Set()) // Store favorite IDs
 const searchTerm = ref('')
 const markers = ref([])
+
+async function loadFavorites() {
+    const res = await fetch('/favorites') // or your real endpoint
+    favorites.value = await res.json()
+}
+
 
 function webMercatorToLatLng(x, y) {
     const lng = (x / 20037508.34) * 180
@@ -15,6 +22,40 @@ function webMercatorToLatLng(x, y) {
     const latRadians = (lat * Math.PI) / 180
     const latFinal = (180 / Math.PI) * (2 * Math.atan(Math.exp(latRadians)) - Math.PI / 2)
     return { lat: latFinal, lng }
+}
+
+function isFavorited(feature) {
+    return favorites.value.includes(feature)
+}
+
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+}
+
+async function toggleFavorite(feature) {
+    const already = isFavorited(feature)
+
+    if (already) {
+        await fetch('/favorites', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+            body: JSON.stringify({ feature }),
+        })
+        favorites.value = favorites.value.filter(f => f !== feature)
+    } else {
+        await fetch('/favorites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': getCsrfToken(),
+            },
+            body: JSON.stringify({ feature }),
+        })
+        favorites.value.push(feature.name)
+    }
 }
 
 const redIcon = new L.Icon({
@@ -41,7 +82,22 @@ function updateMarkers() {
         const icon = point.status === 'closed' ? redIcon : greenIcon
         const marker = L.marker([point.lat, point.lng], { icon })
             .addTo(map.value)
-            .bindPopup(`<strong>${point.name}</strong><br>Status: ${point.status}`)
+            .bindPopup(() => {
+                const container = document.createElement('div')
+                container.innerHTML = `
+                <strong>${point.name}</strong><br>
+                Status: ${point.status}<br>
+                <button class="favorite-btn">${favorites.value.includes(point.name) ? '★ Unfavorite' : '☆ Favorite'}</button>
+            `
+
+                        container.querySelector('.favorite-btn').addEventListener('click', () => {
+                            toggleFavorite(point)
+                            marker.closePopup()
+                            marker.openPopup() // Rerenders popup with updated star
+                        })
+
+                        return container
+                    })
 
         markers.value.push(marker)
     })
@@ -77,6 +133,8 @@ onMounted(async () => {
         }
     })
 
+    await loadFavorites()
+
     filteredClosures.value = closures.value // Initial state: show all
     updateMarkers()
 })
@@ -98,5 +156,14 @@ onMounted(async () => {
 #map {
     height: 100vh;
     width: 100vw;
+}
+
+.favorite-btn {
+    background: none;
+    border: none;
+    color: #f39c12;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 5px;
 }
 </style>

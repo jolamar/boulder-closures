@@ -8,6 +8,7 @@ const closures = ref([])
 const filteredClosures = ref([])
 const favorites = ref(new Set()) // Store favorite IDs
 const searchTerm = ref('')
+const showOnlyFavorites = ref(false)
 const markers = ref([])
 
 async function loadFavorites() {
@@ -110,6 +111,22 @@ watch(searchTerm, (term) => {
     updateMarkers()
 })
 
+watch([searchTerm, showOnlyFavorites, favorites], (term) => {
+    applyFilters()
+})
+
+function applyFilters() {
+    const lower = searchTerm.value.toLowerCase()
+
+    filteredClosures.value = closures.value.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(lower)
+        const isFavorite = favorites.value.includes(c.name) // or c.id, depending on what you store
+        return matchesSearch && (!showOnlyFavorites.value || isFavorite)
+    })
+
+    updateMarkers()
+}
+
 onMounted(async () => {
     map.value = L.map('map').setView([39.998, -105.283], 13)
 
@@ -148,6 +165,11 @@ onMounted(async () => {
             placeholder="Search flatirons..."
             class="absolute top-4 left-12 z-[1000] p-2 rounded bg-white border shadow"
         />
+
+        <label class="absolute top-4 right-12 z-[1000] bg-white p-2 rounded shadow cursor-pointer select-none">
+            <input type="checkbox" v-model="showOnlyFavorites" class="mr-2" />
+            Show Favorites
+        </label>
         <div id="map"></div>
     </div>
 </template>
